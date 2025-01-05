@@ -1,164 +1,97 @@
-# Rasterized DB
+# Rastdp (Rasterized Datagram Protocol)
 
-## A new schemaless, high-performance database written from scratch in Rust.
+## A UDP-based asynchronous communication protocol optimized for efficient inter-application messaging.
 
-### Vision
+### Use cases
 
-#### Why schemaless?
+#### Key Features
 
-In Rasterized DB, the schema is maintained on the client side instead of the database. This design allows for flexibility and adaptability. To support this approach, an ORM (Object-Relational Mapper) for Rust will be released soon, catering to a variety of development needs.
+- **Scalability**: Supports an infinite number of requests on both the server and client sides, ensuring robust handling of high-demand scenarios.
+- **Efficiency**: Designed for low-latency, high-performance communication with minimal overhead.
 
-#### How Does It Achieve Better Performance Than Conventional Databases?
+#### Use Cases
 
-Rasterized DB adopts a novel approach inspired by how the web works. For example, when you receive a file with specific headers, the file isn’t re-fetched if it hasn’t expired; instead, the existing copy is used. Similarly, every query in Rasterized DB is hashed. If the same query is repeated, the corresponding row is loaded directly from a specific file location without needing to scan.
+Rastdp is ideal for low-latency networking environments, enabling rapid data exchange and seamless communication in scenarios where performance and scalability are critica
 
-Future updates will introduce an in-memory cache for rows, allowing the system to bypass the file system entirely. This will provide a combined functionality similar to Redis and a database, offering fast performance and seamless integration.
+#### Coming Soon Features
 
-#### Why Rust?
+- Compression: Reduce data size to further optimize bandwidth usage.
+- Secure Communication: Enable encrypted network traffic for enhanced security and privacy.
 
-Rust provides high-level, zero-cost abstractions combined with low-level optimization capabilities. This makes development faster while achieving the best possible performance. Rust's safety guarantees also contribute to the reliability and robustness of the database.
+#### Network Byte Layout
 
-#### Does it have limits?
-
-Rasterized DB is designed with scalability and flexibility in mind, aiming to accommodate all potential use cases. Future updates will introduce support for new and exotic data types, enabling the database to natively handle complex data structures. Examples include one-dimensional and multi-dimensional arrays, vectors, and tensors.
-
-Theoretically, the database can support limitless amounts of data, row sizes, and the number of columns.
-
-#### What is RQL? 
-
-Rasterized Query Language (RQL) is a SQL-inspired dialect tailored to the unique requirements of Rasterized DB. Since the schema is managed by the client and not the database server, traditional SQL cannot be used directly.
-
-RQL is also planned to include advanced features inspired by Microsoft’s Kusto Query Language, enhancing its expressiveness and functionality.
-
-#### Will it have an ORM?
-
-Yes, a standalone ORM for Rust is planned, with a C# version to follow soon after.
-
-#### Which futures are missing?
-
-The following features are currently missing but are planned for future updates:
-
-- Inserting rows (through RQL)
-- Updating rows
-- Deleting rows (through RQL)
-- Vacuuming empty space
-- UUID (GUID) support
-- Fully functional RETURN, LIMIT, and SELECT commands among many other SQL features missing
-- Server features
-- Sharding
-- Compression
-- Table Immutability 
-
-Many additional enhancements are also planned to make the database more robust and feature-complete.
+The network byte layout is currently not stable and is subject to change. A detailed paper on the finalized layout will be published to allow third-party integration.
 
 #### Is it stable?
+
 Short answer, no. It will get through many refinements and even changes to the table files. Until version 1.0.0 use it on your own risk.
 
 ### How to use the current API?
 
-#### Features:
-`enable_index_caching` to enable query caching
-
-```rust
-// Imports
-use rasterizeddb_core::{
-    core::{
-        column::Column, 
-        row::InsertOrUpdateRow, 
-        storage_providers::{file_sync::LocalStorageProvider, memory::MemoryStorageProvider}, 
-        table::Table
-    }, rql::parser::parse_rql
-};
+```toml
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+async-lazy = { version = "0.1.0", features = ["parking_lot"] }
 ```
 
-#### Create a table
 ```rust
-//Local File Storage Database
-let io_sync = LocalStorageProvider::new(
-    "Some\\Folder",
-    "database.db"
-);
-//In-Memory Database
-let io_sync = MemoryStorageProvider::new();
+use rastdp::{receiver::Receiver, sender::Sender};
+use tokio::io;
+use std::sync::Arc;
 
-let mut table = Table::init(io_sync, false, false).unwrap();
-```
+//Static receiver
+static RECEIVER: async_lazy::Lazy<Arc<Receiver>> = async_lazy::Lazy::const_new(|| Box::pin(async {
+    let receiver = Receiver::new("127.0.0.1:8080").await.unwrap();
+    Arc::new(receiver)
+}));
 
-#### Create columns, rows and insert them
+static SENDER: async_lazy::Lazy<Arc<Sender>> = async_lazy::Lazy::const_new(|| Box::pin(async {
+    let sender = Sender::new("127.0.0.1:8080".to_string()).await.unwrap();
+    Arc::new(sender)
+}));
 
-```rust
-let mut c1 = Column::new(10 as i32).unwrap();
-let mut c2 = Column::new(50.0 as f64).unwrap();
-let mut c3 = Column::new("This is awesome").unwrap();
-let mut columns_buffer: Vec<u8> = Vec::with_capacity(
-    c1.len() + 
-    c2.len() +
-    c3.len() +
-);
-columns_buffer.append(&mut c1.into_vec().unwrap());
-columns_buffer.append(&mut c2.into_vec().unwrap());
-columns_buffer.append(&mut c3.into_vec().unwrap());
+#[tokio::main]
+async fn main() -> io::Result<()> {
+    // Server processing requests
+    tokio::spawn(async { 
+        let receiver = RECEIVER.force().await;
+        let receiver_clone = receiver.clone();
 
-let insert_row = InsertOrUpdateRow {
-    columns_data: columns_buffer
-};
+        // Function that returns a result
+        receiver_clone.start_processing_function_result(
+            a_function_receiving_request_and_returning_result
+        ).await;
 
-table.insert_row(insert_row).await;
-```
+        // Function that only processes requests
+        receiver.start_processing_function(
+            a_function_receiving_request
+        ).await;
+    });
 
-#### Build in-memory file indexes
-```rust
-table.rebuild_in_memory_indexes();
-```
+    // Client sending requests
+    let sender = SENDER.force().await;
+    for i in 0..1_000_000 {
 
-#### Retrieve a row
-```rust
-let row_by_id = table.first_or_default_by_id(10).unwrap().unwrap();
+        tokio::spawn(async {
+            let sender_clone = sender.clone(); 
+            let test = sender_clone.send_message_get_reply("Hello, world!".repeat(10).as_bytes()).await; 
+            println!("test: {:?}", test);
+        });
+    }
 
-// Read columns
-for column in Column::from_buffer(&row2.columns_data).unwrap().iter() {
-    println!("{}", column.into_value());
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
 }
 
-// Column index, value that must be equal
-let row_by_column_value = table.first_or_default_by_column(2, "This is awesome").unwrap().unwrap();
+async fn a_function_receiving_request_and_returning_result(buf: Vec<u8>) -> Vec<u8> {
+    println!("buf: {:?}", buf.len());
+    vec![1, 2, 3, 4, 5]
+}
 
-//Rasterized Query Language (Alpha)
-let query_evaluation = parse_rql(&format!(r#"
-    BEGIN
-    SELECT FROM NAME_DOESNT_MATTER_FOR_NOW
-    WHERE COL(2) = 'This is awesome'
-    END
-"#)).unwrap();
-
-// Uses cache: If the same query is repeated, the time to retrieve a row should be in the single-digit range.
-let row_by_query = table.first_or_default_by_query(query_evaluation).await.unwrap().unwrap();
-```
-
-#### Update a row
-```rust
-let update_row = InsertOrUpdateRow {
-    columns_data: columns_buffer_update
-};
-
-table.update_row_by_id(3, update_row).await;
-```
-
-#### Delete a row
-```rust
-// Invalidates cache automatically
-table.delete_row_by_id(10).unwrap();
-```
-
-#### Table Maintanance
-```rust
-// Vacuum the table
-// Note: The removed row's ids will be sorted back in use. 
-// So deleted row ID(3) and following rows ID(4), ID(5), ID(X) will become row ID(3), ID(4), ID(X - 1)
-table.vacuum_table().await;
-
-// Must rebuild in-memory file indexes after vacuum
-table.rebuild_in_memory_indexes();
+async fn a_function_receiving_request(buf: Vec<u8>) {
+    println!("buf: {:?}", buf.len());
+}
 ```
 
 ### License
