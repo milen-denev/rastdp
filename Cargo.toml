@@ -1,0 +1,17 @@
+[package]
+name = "rastdp"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/milen-denev/rastdp"
+license = "GPL-3.0-only"
+keywords = ["network", "udp", "communication", "protocol"]
+authors = ["Milen Denev"]
+description = "Rastdp (Rasterized Datagram Protocol) is an asynchronous communication protocol built on UDP for efficient inter-application messaging."
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+rand = "0.8.5"
+dashmap = "6.1.0"
+async-lazy = { version = "0.1.0", features = ["parking_lot"] }
+ahash = "0.8.11"
+log = "0.4.22"
