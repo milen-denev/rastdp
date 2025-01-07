@@ -1,6 +1,6 @@
 use crate::message_status::MessageStatus;
 
-use super::HEADER_SIZE;
+use super::{ACK_BYTES, HEADER_SIZE};
 
 pub(crate) struct IncomingPacketInfo {
     pub(crate) sequence_number: u16,
@@ -53,4 +53,20 @@ impl IncomingPacketInfo {
             checksum: checksum
         }
     }
+}
+
+pub(crate) fn get_ack_message(session_id: u64) -> [u8; 12] {
+    let mut ack_message: [u8; 4 + 8] = [0; 4 + 8];
+
+    for i in 0..4 {
+        ack_message[i] = ACK_BYTES[i];
+    }
+
+    let session_id_bytes = session_id.to_be_bytes();
+
+    for i in 4..12 {
+        ack_message[i] = session_id_bytes[i - 4];
+    }
+
+    return ack_message;
 }

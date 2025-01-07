@@ -3,7 +3,7 @@ use std::{future::Future, net::SocketAddr, sync::Arc};
 use helpers::{construct_slice, PacketInfo};
 use tokio::{io, net::UdpSocket, sync::RwLock};
 
-use crate::{message_status::MessageStatus, receiver::Receiver, MESSAGE_SIZE};
+use crate::{message_status::MessageStatus, receiver::{helpers::get_ack_message, Receiver}, MESSAGE_SIZE};
 
 // Session Id (8 bytes)
 // Sequence Number (2 bytes)
@@ -50,10 +50,9 @@ impl Sender {
         }
 
         let mut buf = vec![0u8; 24];
-        let (len, _) = socket.recv_from(&mut buf).await?;
-        let response = String::from_utf8_lossy(&buf[..len]);
-
-        if response == format!("ACK {}", packet_info.session_id) {
+        _ = socket.recv_from(&mut buf).await?;
+        
+        if &buf[..12] == get_ack_message(packet_info.session_id) {
             Ok(())
         } else {
             Err(io::Error::new(io::ErrorKind::Other, "Invalid acknowledgment"))
@@ -76,10 +75,9 @@ impl Sender {
         }
 
         let mut buf = vec![0u8; 24];
-        let (len, _) = socket.recv_from(&mut buf).await?;
-        let response = String::from_utf8_lossy(&buf[..len]);
-
-        if response == format!("ACK {}", packet_info.session_id) {
+        _ = socket.recv_from(&mut buf).await?;
+        
+        if &buf[..12] == get_ack_message(packet_info.session_id) {
             let socket = Arc::new(socket);
             let socket = socket.clone();
             Receiver::process_reply_external(function, socket).await;
@@ -102,10 +100,9 @@ impl Sender {
         }
 
         let mut buf = vec![0u8; 24];
-        let (len, _) = socket.recv_from(&mut buf).await?;
-        let response = String::from_utf8_lossy(&buf[..len]);
+        _ = socket.recv_from(&mut buf).await?;
 
-        if response == format!("ACK {}", packet_info.session_id) {
+        if &buf[..12] == get_ack_message(packet_info.session_id) {
             let socket = Arc::new(socket);
             let socket = socket.clone();
             let mut buf = [0u8; 1500];

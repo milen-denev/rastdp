@@ -2,7 +2,7 @@ use std::{future::Future, sync::Arc};
 
 use ahash::RandomState;
 use dashmap::DashMap;
-use helpers::IncomingPacketInfo;
+use helpers::{get_ack_message, IncomingPacketInfo};
 use log::trace;
 use tokio::{io, net::UdpSocket, sync::RwLock};
 
@@ -94,8 +94,8 @@ impl Receiver {
                     message_buffers.remove(&incoming_packet_info.session_id);
 
                     // Acknowledge the received chunk
-                    let ack = format!("ACK {}", incoming_packet_info.session_id);
-                    _ = receiver.send_to(ack.as_bytes(), addr).await;
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
                 }
             }
         }
@@ -148,8 +148,8 @@ impl Receiver {
                     message_buffers.remove(&incoming_packet_info.session_id);
     
                     // Acknowledge the received chunk
-                    let ack = format!("ACK {}", incoming_packet_info.session_id);
-                    _ = receiver.send_to(ack.as_bytes(), addr).await;
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
     
                     break message
                 }
@@ -212,8 +212,8 @@ impl Receiver {
                     message_buffers.remove(&incoming_packet_info.session_id);
 
                     // Acknowledge the received chunk
-                    let ack = format!("ACK {}", incoming_packet_info.session_id);
-                    _ = receiver.send_to(ack.as_bytes(), addr).await;
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
 
                     _ = Sender::send_message_external(
                         &result, 
@@ -283,8 +283,8 @@ impl Receiver {
                     message_buffers.remove(&incoming_packet_info.session_id);
 
                     // Acknowledge the received chunk
-                    let ack = format!("ACK {}", incoming_packet_info.session_id);
-                    _ = receiver.send_to(ack.as_bytes(), addr).await;
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
                 }
             }
         }
@@ -339,8 +339,8 @@ impl Receiver {
                     message_buffers.remove(&incoming_packet_info.session_id);
     
                     // Acknowledge the received chunk
-                    let ack = format!("ACK {}", incoming_packet_info.session_id);
-                    _ = receiver.send_to(ack.as_bytes(), addr).await;
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
     
                     break message
                 }
