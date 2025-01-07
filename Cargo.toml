@@ -12,6 +12,7 @@ description = "Rastdp (Rasterized Datagram Protocol) is an asynchronous communic
 tokio = { version = "1", features = ["full"] }
 rand = "0.8.5"
 dashmap = "6.1.0"
-# async-lazy = { version = "0.1.0", features = ["parking_lot"] }
+async-lazy = { version = "0.1.0", features = ["parking_lot"] }
 ahash = "0.8.11"
 log = "0.4.22"
+crc = "3.2.1"
