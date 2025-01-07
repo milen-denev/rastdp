@@ -1,12 +1,9 @@
 use std::{future::Future, net::SocketAddr, sync::Arc};
 
 use helpers::{construct_slice, PacketInfo};
-use log::trace;
 use tokio::{io, net::UdpSocket, sync::RwLock};
 
-use rand::prelude::*;
-
-use crate::{message_status::MessageStatus, receiver::Receiver, MESSAGE_SIZE, X32_CHECKSUM};
+use crate::{message_status::MessageStatus, receiver::Receiver, MESSAGE_SIZE};
 
 // Session Id (8 bytes)
 // Sequence Number (2 bytes)

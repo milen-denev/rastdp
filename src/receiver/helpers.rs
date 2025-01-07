@@ -8,6 +8,8 @@ pub(crate) struct IncomingPacketInfo {
     pub(crate) session_id: u64,
     pub(crate) message_status: MessageStatus,
     pub(crate) compressed: bool, 
+
+    #[cfg(feature = "enable_checksums")]
     pub(crate) checksum: u32
 }
 
@@ -31,6 +33,8 @@ impl IncomingPacketInfo {
 
         let message_status = header[12];
         let compressed = header[13];
+        
+        #[cfg(feature = "enable_checksums")]
         let checksum = u32::from_be_bytes(
         [
             header[14], 
@@ -45,6 +49,7 @@ impl IncomingPacketInfo {
             session_id: session_id,
             message_status: MessageStatus::from_u8(message_status),
             compressed: if compressed == 0 { false } else if compressed == 1{ true } else { panic!() },
+            #[cfg(feature = "enable_checksums")]
             checksum: checksum
         }
     }

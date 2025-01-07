@@ -44,7 +44,7 @@ async fn main() -> io::Result<()> {
     // Client sending requests
     let sender = SENDER.force().await;
 
-    for i in 0..1_000_000 {
+    for _i in 0..1_000_000 {
         tokio::spawn(async {
             let sender_clone = sender.clone(); 
             let _test = sender_clone.send_message_get_reply("Hello, world!".repeat(5000).as_bytes()).await; 
@@ -55,7 +55,7 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
-async fn a_function_receiving_request_and_returning_result(buf: Vec<u8>) -> Vec<u8> {
+async fn a_function_receiving_request_and_returning_result(_buf: Vec<u8>) -> Vec<u8> {
     //println!("buf len: {:?}", buf.len());
     //println!("message lossy: {}", String::from_utf8_lossy(&buf));
     vec![1, 2, 3, 4, 5]

@@ -3,7 +3,10 @@ use rand::Rng;
 
 use crate::message_status::MessageStatus;
 
-use super::{MESSAGE_SIZE, X32_CHECKSUM};
+use super::MESSAGE_SIZE;
+
+#[cfg(feature = "enable_checksums")]
+use crate::X32_CHECKSUM;
 
 pub(crate) struct PacketInfo {
     message_len: usize,
@@ -58,9 +61,11 @@ pub(crate) fn construct_slice(chunk: &[u8], packet_info: &PacketInfo, i: usize) 
     packet.extend_from_slice(&packet_info.get_message_status());
     packet.extend_from_slice(&packet_info.get_compressed());
 
-    let checksum = X32_CHECKSUM.checksum(&chunk).to_be_bytes();
-
-    packet.extend_from_slice(&checksum);
+    #[cfg(feature = "enable_checksums")]
+    {
+        let checksum = X32_CHECKSUM.checksum(&chunk).to_be_bytes();
+        packet.extend_from_slice(&checksum);
+    }
 
     packet.extend_from_slice(chunk);
 

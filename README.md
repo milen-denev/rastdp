@@ -28,6 +28,9 @@ Short answer, no. It will get through many refinements and even changes to the t
 
 ### How to use the current API?
 
+#### Features
+- **enable_checksums**: Enables checking for each packet if it matches the checksum, otherwise will ask the client for repeat (under implementation, still isn't working)
+
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
