@@ -39,9 +39,6 @@ impl IncomingPacketInfo {
             header[17],
         ]);
 
-        println!("{:?}", header);
-        println!("{:?}", message_status);
-
         IncomingPacketInfo {
             sequence_number: sequence_number,
             total_parts: total_parts,

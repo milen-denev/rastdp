@@ -10,6 +10,8 @@ use crate::{message_status::MessageStatus, sender::Sender, HEADER_SIZE};
 
 pub(crate) mod helpers;
 
+const ACK_BYTES: &[u8; 4]  = b"ACK ";
+
 #[derive(Clone)]
 pub struct Receiver {
     receiver: Arc<UdpSocket>,
@@ -50,6 +52,15 @@ impl Receiver {
         loop {
             if let Ok((len, addr)) = receiver.recv_from(&mut buf).await {
                 let received_data = &buf[..len];
+
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    return;
+                }
+
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
                 let payload = received_data[HEADER_SIZE..].to_vec();
 
@@ -97,6 +108,15 @@ impl Receiver {
         let message = loop {
             if let Ok((len, addr)) = receiver.recv_from(buf).await {
                 let received_data = &buf[..len];
+
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    return Vec::new();
+                }
+                
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
                 let payload = received_data[HEADER_SIZE..].to_vec();
     
@@ -150,6 +170,15 @@ impl Receiver {
         loop {
             if let Ok((len, addr)) = receiver.recv_from(&mut buf).await {
                 let received_data = &buf[..len];
+
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    return;
+                }
+
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
                 let payload = received_data[HEADER_SIZE..].to_vec();
     
@@ -212,6 +241,15 @@ impl Receiver {
         loop {
             if let Ok((len, addr)) = receiver.recv_from(&mut buf).await {
                 let received_data = &buf[..len];
+
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    return;
+                }
+
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
                 let payload = received_data[HEADER_SIZE..].to_vec();
     
@@ -255,12 +293,21 @@ impl Receiver {
     /// Internal use only
     pub(crate) async fn get_message_external(
         receiver: Arc<UdpSocket>, 
-        buf: &mut [u8; 1500]) -> Vec<u8>{
+        buf: &mut [u8; 1500]) -> Vec<u8> {
         let message_buffers: DashMap<u64, Vec<(u16, Vec<u8>)>, RandomState> = DashMap::default();
 
         let message = loop {
             if let Ok((len, addr)) = receiver.recv_from(buf).await {
                 let received_data = &buf[..len];
+                
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    return Vec::new();
+                }
+
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
                 let payload = received_data[HEADER_SIZE..].to_vec();
     

@@ -1,3 +1,4 @@
+use log::error;
 use rastdp::{receiver::Receiver, sender::Sender};
 use tokio::io;
 use std::sync::Arc;
@@ -14,6 +15,16 @@ static SENDER: async_lazy::Lazy<Arc<Sender>> = async_lazy::Lazy::const_new(|| Bo
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    std::env::set_var("RUST_LOG", "error");
+    std::env::set_var("RUST_BACKTRACE", "0");
+    std::panic::set_hook(Box::new(|panic_info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        error!("Backtrace: {:#?}", backtrace);
+        error!("Panic info: {:#?}", panic_info);
+    }));
+
+    env_logger::init();
+
     // Server processing requests
     tokio::spawn(async { 
         let receiver = RECEIVER.force().await;
@@ -33,27 +44,20 @@ async fn main() -> io::Result<()> {
     // Client sending requests
     let sender = SENDER.force().await;
 
-    let sender_clone = sender.clone(); 
-    let test = sender_clone.send_message_get_reply("Hello, world!".repeat(100).as_bytes()).await; 
-    println!("test: {:?}", test);
-
     for i in 0..1_000_000 {
-        // tokio::spawn(async {
-        //     let sender_clone = sender.clone(); 
-        //     let test = sender_clone.send_message_get_reply("Hello, world!".repeat(100).as_bytes()).await; 
-        //     println!("test: {:?}", test);
-        // });
+        tokio::spawn(async {
+            let sender_clone = sender.clone(); 
+            let _test = sender_clone.send_message_get_reply("Hello, world!".repeat(5000).as_bytes()).await; 
+            //println!("test: {:?}", test);
+        });
     }
 
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    }
-
-    //Ok(())
+    Ok(())
 }
 
 async fn a_function_receiving_request_and_returning_result(buf: Vec<u8>) -> Vec<u8> {
-    println!("buf: {:?}", buf.len());
+    //println!("buf len: {:?}", buf.len());
+    //println!("message lossy: {}", String::from_utf8_lossy(&buf));
     vec![1, 2, 3, 4, 5]
 }
 
