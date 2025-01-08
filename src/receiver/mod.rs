@@ -1,7 +1,6 @@
 use std::{future::Future, sync::Arc, u64};
 
 use ahash::RandomState;
-use dashmap::{try_result::TryResult, DashMap};
 use helpers::{get_ack_message, IncomingPacketInfo};
 use log::trace;
 use tokio::{io, net::UdpSocket, sync::RwLock};
@@ -58,7 +57,7 @@ impl Receiver {
                     received_data[1] == ACK_BYTES[1] &&
                     received_data[2] == ACK_BYTES[2] &&
                     received_data[3] == ACK_BYTES[3] {
-                    return;
+                    continue;
                 }
 
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
@@ -163,6 +162,8 @@ impl Receiver {
     
                     break message
                 }
+            } else {
+                break Vec::new()
             }
         };
 
@@ -186,7 +187,7 @@ impl Receiver {
                     received_data[1] == ACK_BYTES[1] &&
                     received_data[2] == ACK_BYTES[2] &&
                     received_data[3] == ACK_BYTES[3] {
-                    return;
+                    continue;
                 }
 
                 let incoming_packet_info = IncomingPacketInfo::new(received_data);
@@ -305,6 +306,7 @@ impl Receiver {
                     // Acknowledge the received chunk
                     let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
                     _ = receiver.send_to(&ack_message, addr).await;
+                    break;
                 }
             }
         }

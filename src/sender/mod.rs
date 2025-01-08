@@ -49,10 +49,11 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 12];
+        let mut buf = [0u8; 12];
+        let ack_message = get_ack_message(packet_info.session_id);
         _ = socket.recv_from(&mut buf).await?;
-        
-        if &buf[..12] == get_ack_message(packet_info.session_id) {
+
+        if buf == ack_message {
             Ok(())
         } else {
             Err(io::Error::new(io::ErrorKind::Other, "Invalid acknowledgment"))
@@ -74,10 +75,11 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 12];
+        let mut buf = [0u8; 12];
+        let ack_message = get_ack_message(packet_info.session_id);
         _ = socket.recv_from(&mut buf).await?;
-        
-        if &buf[..12] == get_ack_message(packet_info.session_id) {
+
+        if buf == ack_message {
             let socket = Arc::new(socket);
             Receiver::process_reply_external(function, socket).await;
             Ok(())
@@ -98,10 +100,11 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 12];
+        let mut buf = [0u8; 12];
+        let ack_message = get_ack_message(packet_info.session_id);
         _ = socket.recv_from(&mut buf).await?;
 
-        if &buf[..12] == get_ack_message(packet_info.session_id) {
+        if buf == ack_message {
             let socket = Arc::new(socket);
             let mut buf = [0u8; 1500];
             let message = Receiver::get_message_external(socket, &mut buf).await;
@@ -128,10 +131,11 @@ impl Sender {
             socket.send_to(&packet, addr).await?;
         }
 
-        let mut buf = vec![0u8; 12];
+        let mut buf = [0u8; 12];
+        let ack_message = get_ack_message(packet_info.session_id);
         _ = socket.recv_from(&mut buf).await?;
 
-        if &buf[..12] == get_ack_message(packet_info.session_id) {
+        if buf == ack_message {
             Ok(())
         } else {
             Err(io::Error::new(io::ErrorKind::Other, "Invalid acknowledgment"))
