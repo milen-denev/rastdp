@@ -49,7 +49,7 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 24];
+        let mut buf = vec![0u8; 12];
         _ = socket.recv_from(&mut buf).await?;
         
         if &buf[..12] == get_ack_message(packet_info.session_id) {
@@ -74,12 +74,11 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 24];
+        let mut buf = vec![0u8; 12];
         _ = socket.recv_from(&mut buf).await?;
         
         if &buf[..12] == get_ack_message(packet_info.session_id) {
             let socket = Arc::new(socket);
-            let socket = socket.clone();
             Receiver::process_reply_external(function, socket).await;
             Ok(())
         } else {
@@ -99,14 +98,13 @@ impl Sender {
             socket.send_to(&packet, self.server_addr.as_str()).await?;
         }
 
-        let mut buf = vec![0u8; 24];
+        let mut buf = vec![0u8; 12];
         _ = socket.recv_from(&mut buf).await?;
 
         if &buf[..12] == get_ack_message(packet_info.session_id) {
             let socket = Arc::new(socket);
-            let socket = socket.clone();
             let mut buf = [0u8; 1500];
-            let message = Receiver::get_message_external(socket.clone(), &mut buf).await;
+            let message = Receiver::get_message_external(socket, &mut buf).await;
             Ok(message)
         } else {
             Err(io::Error::new(io::ErrorKind::Other, "Invalid acknowledgment"))
@@ -130,7 +128,14 @@ impl Sender {
             socket.send_to(&packet, addr).await?;
         }
 
-        Ok(())
+        let mut buf = vec![0u8; 12];
+        _ = socket.recv_from(&mut buf).await?;
+
+        if &buf[..12] == get_ack_message(packet_info.session_id) {
+            Ok(())
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, "Invalid acknowledgment"))
+        }
     }
 }
 

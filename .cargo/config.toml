@@ -1,0 +1,5 @@
+[build]
+rustflags = [
+    # "-C", "link-arg=-zstack-size=8388608", # Linux/macOS
+    "-C", "link-arg=/STACK:8388608"        # Windows
+]
