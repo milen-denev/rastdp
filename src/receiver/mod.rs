@@ -3,6 +3,7 @@ use std::{future::Future, sync::Arc, u64};
 use ahash::RandomState;
 use helpers::{get_ack_message, IncomingPacketInfo};
 use log::trace;
+use moka::sync::{Cache, CacheBuilder};
 use tokio::{io, net::UdpSocket, sync::RwLock};
 
 use crate::{message_status::MessageStatus, sender::Sender, HEADER_SIZE};
@@ -14,7 +15,7 @@ const ACK_BYTES: &[u8; 4]  = b"ACK ";
 #[derive(Clone)]
 pub struct Receiver {
     receiver: Arc<UdpSocket>,
-    message_buffers: moka::future::Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState>,
+    message_buffers: Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState>,
     _secure: bool,
     _compress: bool,
     _message_status: Arc<RwLock<MessageStatus>>,
@@ -31,7 +32,7 @@ impl Receiver {
 
         Ok(Self {
             receiver: Arc::new(socket),
-            message_buffers: moka::future::Cache::builder().build_with_hasher(RandomState::new()),
+            message_buffers: Cache::builder().build_with_hasher(RandomState::new()),
             _secure: secure,
             _compress: compress,
             _message_status: Arc::new(RwLock::new(MessageStatus::NotSecured)),
@@ -70,10 +71,10 @@ impl Receiver {
 
                 // Add the chunk to the message buffer
                 let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 } else {
-                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default()))).await;
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 };
 
                 let mut buffer = message_lock.write().await;
@@ -83,7 +84,7 @@ impl Receiver {
 
                 // If all chunks are received, reassemble the message
                 if len == incoming_packet_info.total_parts as usize {
-                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).await.unwrap();
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
                     let mut inner_message = inner_message_lock.write().await;
                     inner_message.sort_by_key(|k| k.0);
                     let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
@@ -131,10 +132,10 @@ impl Receiver {
     
                 // Add the chunk to the message buffer
                 let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 } else {
-                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default()))).await;
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 };
 
                 let mut buffer = message_lock.write().await;
@@ -144,7 +145,7 @@ impl Receiver {
 
                 // If all chunks are received, reassemble the message
                 if len == incoming_packet_info.total_parts as usize {
-                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).await.unwrap();
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
                     let mut inner_message = inner_message_lock.write().await;
                     inner_message.sort_by_key(|k| k.0);
                     let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
@@ -200,10 +201,10 @@ impl Receiver {
     
                 // Add the chunk to the message buffer
                 let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 } else {
-                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default()))).await;
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 };
 
                 let mut buffer = message_lock.write().await;
@@ -213,7 +214,7 @@ impl Receiver {
 
                 // If all chunks are received, reassemble the message
                 if len == incoming_packet_info.total_parts as usize {
-                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).await.unwrap();
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
                     let mut inner_message = inner_message_lock.write().await;
                     inner_message.sort_by_key(|k| k.0);
                     let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
@@ -251,7 +252,7 @@ impl Receiver {
         F: Fn(Vec<u8>) -> Fut + Send + Sync,
         Fut: Future<Output = ()> + Send {
 
-        let message_buffers: moka::future::Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState> = moka::future::CacheBuilder::default().build_with_hasher(RandomState::new());
+        let message_buffers: Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState> = CacheBuilder::default().build_with_hasher(RandomState::new());
         let mut buf = vec![0u8; 1500];
         
         loop {
@@ -276,10 +277,10 @@ impl Receiver {
     
                 // Add the chunk to the message buffer
                 let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 } else {
-                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default()))).await;
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 };
 
                 let mut buffer = message_lock.write().await;
@@ -289,7 +290,7 @@ impl Receiver {
 
                 // If all chunks are received, reassemble the message
                 if len == incoming_packet_info.total_parts as usize {
-                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).await.unwrap();
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
                     let mut inner_message = inner_message_lock.write().await;
                     inner_message.sort_by_key(|k| k.0);
                     let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
@@ -316,7 +317,7 @@ impl Receiver {
     pub(crate) async fn get_message_external(
         receiver: Arc<UdpSocket>, 
         buf: &mut [u8; 1500]) -> Vec<u8> {
-        let message_buffers: moka::future::Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState> = moka::future::CacheBuilder::default().build_with_hasher(RandomState::new());
+        let message_buffers: Cache<u64, Arc<RwLock<Vec<(u16, Vec<u8>)>>>, RandomState> = CacheBuilder::default().build_with_hasher(RandomState::new());
 
         let message = loop {
             if let Ok((len, addr)) = receiver.recv_from(buf).await {
@@ -340,10 +341,10 @@ impl Receiver {
     
                 // Add the chunk to the message buffer
                 let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 } else {
-                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default()))).await;
-                    message_buffers.get(&incoming_packet_info.session_id).await.unwrap()
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
                 };
 
                 let mut buffer = message_lock.write().await;
@@ -353,7 +354,7 @@ impl Receiver {
 
                 // If all chunks are received, reassemble the message
                 if len == incoming_packet_info.total_parts as usize {
-                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).await.unwrap();
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
                     let mut inner_message = inner_message_lock.write().await;
                     inner_message.sort_by_key(|k| k.0);
                     let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
