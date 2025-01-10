@@ -244,9 +244,10 @@ impl Receiver {
         }
     }
 
-    pub async fn start_processing_function_result_object<A, F, Fut>(&self, object: &A, function: F)
+    pub async fn start_processing_function_result_object<'a, A, F, Fut>(&self, object: &'a A, function: F)
     where
-        F: Fn(&A, Vec<u8>) -> Fut + Send + Sync,
+        A: Send,
+        F: Fn(&'a A, Vec<u8>) -> Fut + Send + Sync,
         Fut: Future<Output = Vec<u8>> + Send {
         let receiver = self.receiver.clone();
         let message_buffers = self.message_buffers.clone();
