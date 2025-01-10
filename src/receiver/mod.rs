@@ -244,6 +244,79 @@ impl Receiver {
         }
     }
 
+    pub async fn start_processing_function_result_object<A, F, Fut>(&self, object: &A, function: F)
+    where
+        F: Fn(&A, Vec<u8>) -> Fut + Send + Sync,
+        Fut: Future<Output = Vec<u8>> + Send {
+        let receiver = self.receiver.clone();
+        let message_buffers = self.message_buffers.clone();
+        let mut buf = vec![0u8; 1500];
+        
+        loop {
+            if let Ok((len, addr)) = receiver.recv_from(&mut buf).await {
+                let received_data = &buf[..len];
+
+                if 
+                    received_data[0] == ACK_BYTES[0] && 
+                    received_data[1] == ACK_BYTES[1] &&
+                    received_data[2] == ACK_BYTES[2] &&
+                    received_data[3] == ACK_BYTES[3] {
+                    continue;
+                }
+
+                let incoming_packet_info = IncomingPacketInfo::new(received_data);
+                let payload = received_data[HEADER_SIZE..].to_vec();
+    
+                trace!(
+                    "Received chunk {}/{} from session {} from {}",
+                    incoming_packet_info.sequence_number, incoming_packet_info.total_parts, incoming_packet_info.session_id, addr
+                );
+    
+                // Add the chunk to the message buffer
+                let message_lock = if message_buffers.contains_key(&incoming_packet_info.session_id) {
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
+                } else {
+                    message_buffers.insert(incoming_packet_info.session_id, Arc::new(RwLock::new(Vec::default())));
+                    message_buffers.get(&incoming_packet_info.session_id).unwrap()
+                };
+
+                let mut buffer = message_lock.write().await;
+                buffer.push((incoming_packet_info.sequence_number, payload));
+                let len = buffer.len();
+                drop(buffer);
+
+                // If all chunks are received, reassemble the message
+                if len == incoming_packet_info.total_parts as usize {
+                    let inner_message_lock = message_buffers.remove(&incoming_packet_info.session_id).unwrap();
+                    let mut inner_message = inner_message_lock.write().await;
+                    inner_message.sort_by_key(|k| k.0);
+                    let message: Vec<u8> = inner_message.iter().flat_map(|(_, data)| data.clone()).collect();
+                    drop(inner_message);
+                    
+                    trace!(
+                        "Reassembled message from session {}: {}",
+                        incoming_packet_info.session_id,
+                        String::from_utf8_lossy(&message)
+                    );
+
+                    let result: Vec<u8> = function(object, message).await;
+
+                    // Acknowledge the received chunk
+                    let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
+                    _ = receiver.send_to(&ack_message, addr).await;
+
+                    _ = Sender::send_message_external(
+                        &result, 
+                        receiver.clone(), 
+                        addr, 
+                        self._secure, 
+                        self._compress,
+                        None).await;
+                }
+            }
+        }
+    }
+
     /// Internal use only
     pub(crate) async fn process_reply_external<F, Fut>(
         function: F, 
