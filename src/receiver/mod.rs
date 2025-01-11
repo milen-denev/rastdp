@@ -244,10 +244,10 @@ impl Receiver {
         }
     }
 
-    pub async fn start_processing_function_result_object<'a, A, F, Fut>(&self, object: &'a A, function: F)
+    pub async fn start_processing_function_result_object<'a, A, F, Fut>(&self, object: A, function: F)
     where
-        A: Send,
-        F: Fn(&'a A, Vec<u8>) -> Fut + Send + Sync,
+        A: Clone + Send,
+        F: Fn(A, Vec<u8>) -> Fut + Send + Sync,
         Fut: Future<Output = Vec<u8>> + Send {
         let receiver = self.receiver.clone();
         let message_buffers = self.message_buffers.clone();
@@ -300,7 +300,7 @@ impl Receiver {
                         String::from_utf8_lossy(&message)
                     );
 
-                    let result: Vec<u8> = function(object, message).await;
+                    let result: Vec<u8> = function(object.clone(), message).await;
 
                     // Acknowledge the received chunk
                     let ack_message: [u8; 12] = get_ack_message(incoming_packet_info.session_id);
